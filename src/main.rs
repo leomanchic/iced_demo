@@ -1,28 +1,27 @@
+use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{
-    button, checkbox, column, container, row, text, text_editor, text_input, Column,
+    button, checkbox, column, container, horizontal_space, pick_list, row, text, text_input, Column,
 };
-use iced::{Alignment, Element, Length, Renderer, Sandbox, Settings, Theme};
+use iced::{
+    theme, Alignment, Application, Color, Command, Element, Length, Renderer, Settings, Theme,
+};
 
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+// mod sqlreq;
+
 pub fn main() -> iced::Result {
-    // let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    // let pool = match PgPoolOptions::new()
-    //     .max_connections(10)
-    //     .connect(&database_url)
-    //     .unwrap()
-    // {
-    //     Ok(pool) => {
-    //         println!("✅Connection to the database is successful!");
-    //         pool
-    //     }
-    //     Err(err) => {
-    //         println!("🔥 Failed to connect to the database: {:?}", err);
-    //         std::process::exit(1);
-    //     }
-    // };
-    Counter::run(Settings::default())
+    MyApp::run(Settings::default())
 }
-struct Counter {
+
+#[derive(Debug, Clone)]
+
+pub enum Choices {
+    Choice1,
+    Choice2,
+    Choice3,
+    Choice4,
+}
+pub struct MyApp {
+    theme: Theme,
     num: i32,
     checkbox_value: bool,
     text: String,
@@ -33,55 +32,74 @@ pub enum Message {
     Decriment,
     CheckboxToggled(bool),
     InputChanged(String),
+    ThemeChanged(Theme),
 }
-impl Sandbox for Counter {
+impl Application for MyApp {
     type Message = Message;
+    type Executor = iced::executor::Default;
+    type Theme = Theme;
+    type Flags = ();
 
-    fn new() -> Self {
-        Self {
-            num: 0,
-            checkbox_value: false,
-            text: String::from(""),
-        }
+    fn new(_flags: ()) -> (Self, Command<Message>) {
+        (
+            Self {
+                num: 0,
+                checkbox_value: false,
+                text: String::new(),
+                theme: Theme::default(),
+            },
+            Command::none(),
+        )
     }
 
     fn title(&self) -> String {
-        "Hello_postgresql".to_string()
+        "PostgresqlClient".to_string()
     }
 
-    fn update(&mut self, message: Self::Message) {
+    fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
             Message::Decriment => self.num -= 1,
             Message::ButtonPressed => {
                 println!("{}", self.text);
-                self.text = "".to_string()
+                // sqlreq::make(&self.text).unwrap();
+                self.text = String::new()
             }
             Message::CheckboxToggled(value) => self.checkbox_value = value,
             Message::InputChanged(text) => {
                 // println!("{}", text);
                 self.text = text;
             }
+            Message::ThemeChanged(theme) => {
+                self.theme = theme;
+            }
         }
+        Command::none()
     }
 
     fn view(&self) -> Element<Message> {
-        let button = button("Subbmit")
-            .padding(10)
-            .on_press(Message::ButtonPressed);
+        let choose_theme = pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged);
+
+        let button = button("Subbmit").on_press(Message::ButtonPressed);
         let textinput = text_input("Type something...", &self.text)
             .on_input(Message::InputChanged)
-            .padding(10)
-            .size(20);
+            .on_submit(Message::ButtonPressed);
 
+        let status_bar = row![
+            horizontal_space(),
+            choose_theme.padding(5),
+            button.padding(5)
+        ]
+        .spacing(5);
 
-        let content = column![row![textinput, button]
-            .spacing(10)
-            .align_items(Alignment::Center),];
-        container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x()
-            .center_y()
-            .into()
+        let content = container(
+            column![horizontal_space(), textinput.padding(15), status_bar]
+                .spacing(20)
+                .align_items(Alignment::Center),
+        )
+        .into();
+        content
+    }
+    fn theme(&self) -> Theme {
+        self.theme.clone()
     }
 }
