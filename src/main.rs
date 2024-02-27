@@ -2,37 +2,40 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::application::Appearance;
 use iced::widget::{
     button, checkbox, column, container, horizontal_rule, horizontal_space, pick_list, row, text,
-    text_input, Column,
+    text_input, Column, Container,
 };
 use iced::{
     theme, Alignment, Application, Color, Command, Element, Length, Renderer, Settings, Theme,
 };
+use pagetest::SecondPage;
 
-// mod sqlreq;
+mod pagetest;
 
 pub fn main() -> iced::Result {
     MyApp::run(Settings::default())
 }
 
-pub struct Menu {
-    theme: Theme,
-    text: String,
-}
 pub struct MyApp {
     theme: Theme,
-    num: i32,
-    checkbox_value: bool,
     text: String,
+    page: SecondPage,
+    current_view: Views,
 }
+
 #[derive(Debug, Clone)]
 pub enum Message {
     ButtonPressed,
-    Decriment,
-    CheckboxToggled(bool),
     InputChanged(String),
     ThemeChanged(Theme),
-    MenuPressed,
+    PageChanged(Views),
 }
+
+#[derive(Debug, Clone)]
+pub enum Views {
+    Main,
+    Second,
+}
+
 impl Application for MyApp {
     type Message = Message;
     type Executor = iced::executor::Default;
@@ -50,10 +53,10 @@ impl Application for MyApp {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
             Self {
-                num: 0,
-                checkbox_value: false,
+                page: SecondPage::new(),
                 text: String::new(),
                 theme: Theme::default(),
+                current_view: Views::Main,
             },
             Command::none(),
         )
@@ -61,13 +64,11 @@ impl Application for MyApp {
 
     fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
-            Message::Decriment => self.num -= 1,
             Message::ButtonPressed => {
                 println!("{}", self.text);
                 // sqlreq::make(&self.text).unwrap();
                 self.text = String::new()
             }
-            Message::CheckboxToggled(value) => self.checkbox_value = value,
             Message::InputChanged(text) => {
                 // println!("{}", text);
                 self.text = text;
@@ -75,7 +76,7 @@ impl Application for MyApp {
             Message::ThemeChanged(theme) => {
                 self.theme = theme;
             }
-            Message::MenuPressed => {}
+            Message::PageChanged(value) => self.current_view = value,
         }
         Command::none()
     }
@@ -84,10 +85,11 @@ impl Application for MyApp {
         let choose_theme = pick_list(Theme::ALL, Some(&self.theme), Message::ThemeChanged);
 
         let buttone = button("Subbmit").on_press(Message::ButtonPressed);
-        let button1 = button("menu").on_press(Message::MenuPressed);
+        let button1 = button("menu").on_press(Message::PageChanged(Views::Second));
         let button2 = button("config").on_press(Message::ButtonPressed);
         let button3 = button("clients").on_press(Message::ButtonPressed);
         let textinput = text_input("Type something...", &self.text)
+            // .line_height(text::LineHeight::Relative(1.75))
             .on_input(Message::InputChanged)
             .on_submit(Message::ButtonPressed);
 
@@ -100,15 +102,17 @@ impl Application for MyApp {
         ]
         .spacing(2);
 
-        let content = container(
+        let content = Container::new(
             column![
                 horizontal_space(),
                 status_bar.align_items(Alignment::Start),
                 textinput.padding(10),
             ]
             .spacing(10),
-        )
-        .into();
-        content
+        );
+        match self.current_view {
+            Views::Main => content.into(),
+            Views::Second => self.page.view(),
+        }
     }
 }
